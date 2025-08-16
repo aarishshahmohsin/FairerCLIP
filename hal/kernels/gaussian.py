@@ -59,8 +59,8 @@ class RFFGaussian:
 
         else:
             sigma = self.sigma
-        mu_x = torch.zeros(dim_x, device=x.device, dtype=x.dtype)
-        sigma_x = torch.eye(dim_x, device=x.device, dtype=x.dtype) / (sigma ** 2)
+        mu_x = torch.zeros(dim_x, device=x.device, dtype=float)
+        sigma_x = torch.eye(dim_x, device=x.device, dtype=float) / (sigma ** 2)
         px = torch.distributions.MultivariateNormal(mu_x, sigma_x)
         self.w = px.sample((self.rff_dim,))
         p = torch.distributions.uniform.Uniform(torch.tensor([0.0], device=x.device, dtype=x.dtype), 2 * torch.tensor([math.pi], device=x.device, dtype=x.dtype))

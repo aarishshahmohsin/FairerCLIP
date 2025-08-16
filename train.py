@@ -47,6 +47,7 @@ def main():
     testset = Clipfeature('test', cfg)
     testdata = DataLoader(testset, batch_size=testset.__len__(), shuffle=False)
 
+
     # ----------------------------------------------------------
     # loading model /label for zero-shot testing
     # ----------------------------------------------------------
@@ -56,6 +57,8 @@ def main():
 
     if cfg.dataset=='waterbirds':
         text_descriptions = ['This is a picture of a landbird.', 'This is a picture of a waterbird.']
+    elif cfg.dataset == 'faces':
+        text_descriptions = ['An Indian person', 'A Non-Indian Person']
     else:
         text_descriptions = ['A photo of a celebrity with dark hair.', 'A photo of a celebrity with blond hair.']
 

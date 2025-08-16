@@ -209,6 +209,86 @@ class Clipfeature(Dataset):
                 self.labels_s = s_test_onehot.to(cfg.device)
                 self.labels_y_gt = y_test_onehot.to(cfg.device)
 
+        elif cfg.dataset == 'faces':
+            model_name = cfg.load_base_model 
+            model_name = model_name.split('_')[-1]
+            if split == 'train':
+                # Load precomputed image + text features
+                self.imfeat = torch.load(
+                    './features/d=faces-s=train-m=%s.pt' % model_name 
+                ).to(cfg.device)
+
+                self.textfeat = torch.load(
+                    './features/text_features_train_faces_indian_nonindian_%s.pt' % model_name
+                ).to(cfg.device)
+
+                # Sensitive labels (gender+state groups)
+                self.labels_s = torch.load('./features/prediction-faces-s-train.pt').to(cfg.device)
+
+                if cfg.nolabel == True:
+                    # Use pseudo labels from CLIP predictions
+                    self.labels_y = torch.load('./features/prediction-faces-y-train.pt').to(cfg.device)
+                    self.labels_y_gt = self.labels_y.clone()  # here GT not available, so copy
+                else:
+                    # In your script, prediction-faces-y-train.pt already holds the CLIP-based Indian/Non-Indian labels
+                    self.labels_y = torch.load('./features/prediction-faces-y-train.pt').to(cfg.device)
+                    self.labels_y_gt = self.labels_y
+                    labels_sample = torch.argmax((self.labels_y + 1) // 2, dim=1).cpu().numpy()
+
+                ##### Sampling (balance Indian vs Non-Indian) #####
+                data_y0 = np.where(labels_sample == 0)[0]  # Indian
+                data_y1 = np.where(labels_sample == 1)[0]  # Non-Indian
+                balance_sample = min(len(data_y0), len(data_y1))
+
+                data_y0 = np.random.permutation(data_y0)[:int(balance_sample * cfg.sample_ratio1)]
+                data_y1 = np.random.permutation(data_y1)[:int(balance_sample * cfg.sample_ratio2)]
+
+                data = np.hstack((data_y0, data_y1))
+                data.sort()
+
+                print("imfeat:", self.imfeat.shape)
+                print("textfeat:", self.textfeat.shape)
+                print("labels_s:", self.labels_s.shape)
+                print("labels_y:", self.labels_y.shape)
+                print("labels_sample length:", len(labels_sample))
+                print("data max:", data.max(), " data min:", data.min())
+
+                avg_textfeat = self.textfeat.mean(dim=0, keepdim=True)   # [1, 768]
+                expanded_textfeat = avg_textfeat.repeat(self.imfeat.size(0), 1) 
+
+                # Subset all tensors
+                self.imfeat   = self.imfeat[data]
+                self.textfeat = expanded_textfeat[data]
+                self.labels_s = self.labels_s[data]
+                self.labels_y = self.labels_y[data]
+
+            elif split == 'test':
+                self.imfeat = torch.load(
+                    './features/d=faces-s=test-m=%s.pt' % model_name
+                ).to(cfg.device)
+
+                self.textfeat = torch.load(
+                    './features/text_features_test_faces_indian_nonindian_%s.pt' % model_name
+                ).to(cfg.device)
+                
+                avg_textfeat = self.textfeat.mean(dim=0, keepdim=True)   # [1, 768]
+                expanded_textfeat = avg_textfeat.repeat(self.imfeat.size(0), 1) 
+                self.textfeat = expanded_textfeat
+
+                self.labels_s = torch.load('./features/prediction-faces-s-test.pt').to(cfg.device)
+                self.labels_y = torch.load('./features/prediction-faces-y-test.pt').to(cfg.device)
+
+                # For test, we don’t do balancing
+                self.labels_y_gt = self.labels_y
+                
+                
+                # print('imfeat', self.imfeat.shape)
+                # print('textfeat', self.textfeat.shape)
+                # print('labels_s', self.labels_s.shape)
+                # print('labels_y', self.labels_y.shape)
+        
+
+
         else:
             raise RuntimeError(f"No matched dataset (waterbirds / celeba / CFD)")
 
